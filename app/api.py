@@ -43,51 +43,61 @@ def get_config() -> dict:
     return settings.get_config()
 
 
-# 🔥 MAIN FIXED FUNCTION (tests pass)
+# ✅ Standardize
 @app.post("/standardize", status_code=status.HTTP_200_OK)
 def standardize(input_data: Dict[str, Any]) -> dict:
     try:
-        document_id = input_data.get("document_id")
-        fields = input_data.get("extracted_fields", {})
+        # Use the LangGraph pipeline
+        from app.graph import build_graph
 
-        # 🔴 VALIDATION
+        graph = build_graph()
+        result = graph.invoke({"data": input_data})
+
+        # ✅ Extract results safely
+        document_data = result.get("data", {})
+        document_id = document_data.get("document_id")
+
+        # ✅ Return proper validation error
         if not document_id:
-            raise HTTPException(status_code=422, detail="document_id is required")
+            raise HTTPException(
+                status_code=422,
+                detail="Missing required field: document_id"
+            )
 
-        # 🔹 NAME CLEAN
-        name = fields.get("full_name", "")
-        clean_name = " ".join(name.split()).title() if name else None
+        standardized_data = result.get("standardized_data", {})
+        quality_score = result.get("quality_score", 0.0)
+        document_type = result.get("document_type", "unknown")
 
-        # 🔹 EMAIL CLEAN
-        email = fields.get("email_address", "")
-        clean_email = email.lower() if email else None
+        # ✅ Collect validation errors
+        validation_errors = result.get("validation_errors", [])
 
-        # 🔹 PHONE CLEAN
-        phone = fields.get("phone_number", "")
-        clean_phone = phone.replace("-", "").replace(" ", "") if phone else None
+        if result.get("formatting_error"):
+            validation_errors.append(result["formatting_error"])
+
+        if result.get("fixing_error"):
+            validation_errors.append(result["fixing_error"])
 
         return {
             "document_id": document_id,
-            "standardized_data": {
-                "full_name": clean_name,
-                "email_address": clean_email,
-                "phone_number": clean_phone
-            },
-            "quality_score": 1.0,
-            "validation_errors": None
+            "document_type": document_type,
+            "standardized_data": standardized_data,
+            "quality_score": quality_score,
+            "validation_errors": validation_errors if validation_errors else None
         }
 
     except HTTPException:
         raise
+
     except Exception as e:
         logger.error(f"Error: {str(e)}")
+
         raise HTTPException(
             status_code=500,
             detail="Internal server error"
         )
 
 
-# ✅ Batch
+# ✅ Batch processing
 @app.post("/standardize-batch", status_code=status.HTTP_200_OK)
 def standardize_batch(inputs: List[Dict[str, Any]]) -> dict:
     results = []
@@ -113,7 +123,7 @@ def standardize_batch(inputs: List[Dict[str, Any]]) -> dict:
     }
 
 
-# 🔥 Gemini test
+# ✅ Gemini / LLM test
 @app.get("/llm-test")
 def llm_test(prompt: Optional[str] = None) -> dict:
     ai = AIService()
@@ -121,22 +131,38 @@ def llm_test(prompt: Optional[str] = None) -> dict:
 
     try:
         resp = ai.generate(test_prompt)
-        return {"available": True, "provider": "Gemini", "response": resp}
+
+        return {
+            "available": True,
+            "provider": "Gemini",
+            "response": resp
+        }
+
     except Exception as e:
-        return {"available": False, "provider": "Gemini", "error": str(e)}
+        return {
+            "available": False,
+            "provider": "Gemini",
+            "error": str(e)
+        }
 
 
-# ✅ Global exception
+# ✅ Global exception handler
 @app.exception_handler(Exception)
 async def general_exception_handler(request, exc: Exception):
     logger.error(f"Unhandled exception: {str(exc)}")
+
     return JSONResponse(
         status_code=500,
         content={"detail": "Internal server error"}
     )
 
 
-# ✅ Run
+# ✅ Run server
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=8000
+    )

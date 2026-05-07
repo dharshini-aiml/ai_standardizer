@@ -1,113 +1,168 @@
-"""LangGraph workflow for data standardization pipeline."""
-from typing import Dict, Any, TypedDict
-from langgraph.graph import StateGraph, END
-from app.agents.validator import validate_json
-from app.agents.formatter import format_json
-from app.agents.fixer import fix_json
+"""FastAPI application for data standardization service."""
+
+from fastapi import FastAPI, HTTPException, status
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from typing import Optional, List, Dict, Any
+
+from app.config import settings
 from app.utils.logger import logger
+from app.services.ai_service import AIService
 
 
-class PipelineState(TypedDict, total=False):
-    """State schema for the standardization pipeline."""
-    
-    # Input data
-    data: Dict[str, Any]
-    
-    # Validation results
-    is_valid: bool
-    validation_errors: list[str]
-    
-    # Formatting results
-    formatted_data: Dict[str, Any]
-    formatting_error: str
-    
-    # Final standardized results
-    standardized_data: Dict[str, Any]
-    quality_score: float
-    fixing_error: str
+# ✅ FIRST app define பண்ணணும்
+app = FastAPI(
+    title=settings.API_TITLE,
+    version=settings.API_VERSION,
+    description="Data Standardization and Schema Mapping Agent API"
+)
+
+# ✅ Middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
-def should_continue_to_format(state: PipelineState) -> str:
-    """
-    Conditional router: continue to format only if validation passed.
-    
-    Args:
-        state: Current pipeline state
-        
-    Returns:
-        Next node name
-    """
-    if state.get("is_valid", False):
-        logger.debug("Validation passed, proceeding to formatting")
-        return "format"
-    else:
-        logger.error("Validation failed, terminating pipeline")
-        return END
+# ✅ Health
+@app.get("/health")
+def health_check() -> dict:
+    return {
+        "status": "healthy",
+        "service": settings.API_TITLE,
+        "version": settings.API_VERSION
+    }
 
 
-def should_continue_to_fix(state: PipelineState) -> str:
-    """
-    Conditional router: continue to fix only if formatting succeeded.
-    
-    Args:
-        state: Current pipeline state
-        
-    Returns:
-        Next node name
-    """
-    # The StateGraph may pre-populate optional keys (e.g. with None),
-    # so check the value rather than just the presence of the key.
-    if not state.get("formatting_error"):
-        logger.debug("Formatting completed, proceeding to fixing")
-        return "fix"
-    else:
-        logger.error("Formatting failed, terminating pipeline")
-        return END
+# ✅ Config
+@app.get("/config")
+def get_config() -> dict:
+    return settings.get_config()
 
 
-def build_graph() -> Any:
-    """
-    Build the LangGraph workflow for data standardization.
-    
-    Returns:
-        Compiled graph ready for execution
-    """
-    # Create the state graph
-    graph = StateGraph(PipelineState)
-    
-    # Add nodes for each processing step
-    graph.add_node("validate", validate_json)
-    graph.add_node("format", format_json)
-    graph.add_node("fix", fix_json)
-    
-    # Set entry point
-    graph.set_entry_point("validate")
-    
-    # Add conditional edges based on validation
-    graph.add_conditional_edges(
-        "validate",
-        should_continue_to_format,
-        {
-            "format": "format",
-            END: END
+# ✅ Standardize
+@app.post("/standardize", status_code=status.HTTP_200_OK)
+def standardize(input_data: Dict[str, Any]) -> dict:
+    try:
+        # Use the LangGraph pipeline
+        from app.graph import build_graph
+
+        graph = build_graph()
+        result = graph.invoke({"data": input_data})
+
+        # ✅ Extract results safely
+        document_data = result.get("data", {})
+        document_id = document_data.get("document_id")
+
+        # ✅ Return proper validation error
+        if not document_id:
+            raise HTTPException(
+                status_code=422,
+                detail="Missing required field: document_id"
+            )
+
+        standardized_data = result.get("standardized_data", {})
+        quality_score = result.get("quality_score", 0.0)
+        document_type = result.get("document_type", "unknown")
+
+        # ✅ Collect validation errors
+        validation_errors = result.get("validation_errors", [])
+
+        if result.get("formatting_error"):
+            validation_errors.append(result["formatting_error"])
+
+        if result.get("fixing_error"):
+            validation_errors.append(result["fixing_error"])
+
+        return {
+            "document_id": document_id,
+            "document_type": document_type,
+            "standardized_data": standardized_data,
+            "quality_score": quality_score,
+            "validation_errors": validation_errors if validation_errors else None
         }
-    )
-    
-    # Add conditional edges based on formatting
-    graph.add_conditional_edges(
-        "format",
-        should_continue_to_fix,
-        {
-            "fix": "fix",
-            END: END
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        logger.error(f"Error: {str(e)}")
+
+        raise HTTPException(
+            status_code=500,
+            detail="Internal server error"
+        )
+
+
+# ✅ Batch processing
+@app.post("/standardize-batch", status_code=status.HTTP_200_OK)
+def standardize_batch(inputs: List[Dict[str, Any]]) -> dict:
+    results = []
+    errors = []
+
+    for index, item in enumerate(inputs):
+        try:
+            result = standardize(item)
+            results.append(result)
+
+        except Exception as e:
+            errors.append({
+                "index": index,
+                "document_id": item.get("document_id"),
+                "error": str(e)
+            })
+
+    return {
+        "successful": len(results),
+        "failed": len(errors),
+        "results": results,
+        "errors": errors
+    }
+
+
+# ✅ Gemini / LLM test
+@app.get("/llm-test")
+def llm_test(prompt: Optional[str] = None) -> dict:
+    ai = AIService()
+    test_prompt = prompt or "Respond with 'pong'"
+
+    try:
+        resp = ai.generate(test_prompt)
+
+        return {
+            "available": True,
+            "provider": "Gemini",
+            "response": resp
         }
+
+    except Exception as e:
+        return {
+            "available": False,
+            "provider": "Gemini",
+            "error": str(e)
+        }
+
+
+# ✅ Global exception handler
+@app.exception_handler(Exception)
+async def general_exception_handler(request, exc: Exception):
+    logger.error(f"Unhandled exception: {str(exc)}")
+
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"}
     )
-    
-    # Finalize pipeline
-    graph.add_edge("fix", END)
-    
-    # Compile and return
-    compiled_graph = graph.compile()
-    logger.info("Standardization pipeline graph built successfully")
-    
-    return compiled_graph
+
+
+# ✅ Run server
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=8000
+    )

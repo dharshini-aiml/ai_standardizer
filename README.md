@@ -91,36 +91,9 @@ Edit `.env` file to customize:
 LOG_LEVEL=INFO
 LOG_DIR=logs
 
-# LLM Configuration
-OPENAI_API_KEY=your_api_key
-LLM_MODEL=gpt-3.5-turbo
-LLM_TEMPERATURE=0.0
-
-# Optional multi-provider settings
-# Set the provider to one of: openai, cohere, gemini
-LLM_PROVIDER=openai
-# Cohere (optional)
-COHERE_API_KEY=
-# Google Gemini (optional) - install google-generative-ai and set key
-GEMINI_API_KEY=
-GEMINI_MODEL=models/text-bison-001
-
-## 🧠 LLM Providers
-
-This project supports multiple LLM backends. Set `LLM_PROVIDER` to one of `openai`, `cohere`, or `gemini` and provide the corresponding API key in the environment variables shown above.
-
-Example usage from Python (runtime imports are lazy so SDKs are optional):
-
-```python
-from app.services.ai_service import AIService
-
-svc = AIService()
-resp = svc.generate("Normalize the name 'john  doe' to title case", provider="cohere")
-print(resp)
-```
-
-A sample document containing a 10-year experience example is available at [data/input/sample_with_experience.json](data/input/sample_with_experience.json).
-
+# Google Gemini Configuration
+GEMINI_API_KEY=your_gemini_api_key
+GEMINI_MODEL=gemini-1.5-flash
 
 # Processing
 MAX_RETRIES=3

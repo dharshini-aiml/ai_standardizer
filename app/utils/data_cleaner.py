@@ -55,6 +55,130 @@ class DataCleaner:
         return email
     
     @staticmethod
+    def clean_amount(amount: str) -> Optional[float]:
+        """
+        Clean and standardize monetary amounts.
+        
+        Args:
+            amount: Input amount string
+            
+        Returns:
+            Cleaned amount as float, or None if invalid
+        """
+        if not isinstance(amount, str):
+            if isinstance(amount, (int, float)):
+                return float(amount)
+            return None
+            
+        # Remove currency symbols and unwanted characters
+        amount = re.sub(r'[^\d.,\-]', '', amount)
+        
+        # Handle different decimal separators
+        if ',' in amount and '.' in amount:
+            # European format: 1.234,56
+            if amount.rfind(',') > amount.rfind('.'):
+                amount = amount.replace('.', '').replace(',', '.')
+            else:
+                # US format: 1,234.56
+                amount = amount.replace(',', '')
+        elif ',' in amount:
+            # Could be decimal or thousand separator
+            if amount.count(',') == 1 and len(amount.split(',')[1]) <= 2:
+                amount = amount.replace(',', '.')
+            else:
+                amount = amount.replace(',', '')
+        
+        try:
+            return float(amount)
+        except ValueError:
+            logger.warning(f"Could not parse amount: {amount}")
+            return None
+    
+    @staticmethod
+    def clean_date(date_str: str) -> Optional[str]:
+        """
+        Clean and standardize dates to ISO format.
+        
+        Args:
+            date_str: Input date string
+            
+        Returns:
+            ISO formatted date string (YYYY-MM-DD), or None if invalid
+        """
+        if not isinstance(date_str, str):
+            return None
+            
+        date_str = DataCleaner.clean_text(date_str)
+        
+        # Common date patterns
+        patterns = [
+            (r'(\d{1,2})/(\d{1,2})/(\d{4})', lambda m: f"{m.group(3)}-{m.group(1):0>2}-{m.group(2):0>2}"),  # MM/DD/YYYY
+            (r'(\d{1,2})-(\d{1,2})-(\d{4})', lambda m: f"{m.group(3)}-{m.group(1):0>2}-{m.group(2):0>2}"),  # MM-DD-YYYY
+            (r'(\d{4})/(\d{1,2})/(\d{1,2})', lambda m: f"{m.group(1)}-{m.group(2):0>2}-{m.group(3):0>2}"),  # YYYY/MM/DD
+            (r'(\d{4})-(\d{1,2})-(\d{1,2})', lambda m: f"{m.group(1)}-{m.group(2):0>2}-{m.group(3):0>2}"),  # YYYY-MM-DD
+            (r'(\d{1,2})\s+(\w{3})\s+(\d{4})', None),  # DD Mon YYYY (needs month name parsing)
+        ]
+        
+        for pattern, formatter in patterns:
+            match = re.search(pattern, date_str)
+            if match:
+                if formatter:
+                    return formatter(match)
+                # Handle month names
+                day, month_name, year = match.groups()
+                month_names = {
+                    'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04', 'may': '05', 'jun': '06',
+                    'jul': '07', 'aug': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12'
+                }
+                month = month_names.get(month_name.lower()[:3], '01')
+                return f"{year}-{month}-{day:0>2}"
+        
+        logger.warning(f"Could not parse date: {date_str}")
+        return None
+    
+    @staticmethod
+    def clean_invoice_number(inv_num: str) -> str:
+        """
+        Clean invoice numbers by removing unwanted symbols.
+        
+        Args:
+            inv_num: Input invoice number
+            
+        Returns:
+            Cleaned invoice number
+        """
+        if not isinstance(inv_num, str):
+            return str(inv_num) if inv_num else ""
+            
+        # Remove common prefixes and unwanted characters
+        inv_num = re.sub(r'^(inv|invoice|no|#)\s*[:\-]?\s*', '', inv_num, flags=re.IGNORECASE)
+        inv_num = re.sub(r'[^\w\-]', '', inv_num)
+        
+        return DataCleaner.clean_text(inv_num)
+    
+    @staticmethod
+    def clean_symbols(text: str) -> str:
+        """
+        Remove unwanted symbols and normalize text.
+        
+        Args:
+            text: Input text
+            
+        Returns:
+            Cleaned text
+        """
+        if not isinstance(text, str):
+            return text
+            
+        # Remove unwanted symbols but keep alphanumeric, spaces, and basic punctuation
+        text = re.sub(r'[^\w\s\.\-\,\(\)\&\']', '', text)
+        
+        # Normalize whitespace
+        text = " ".join(text.split())
+        
+        return text.strip()
+    
+    @staticmethod
     def clean_phone(phone: str) -> str:
         """
         Clean and standardize phone numbers.

@@ -12,7 +12,7 @@ Input JSON -> Validation Agent -> Formatting Agent -> Fixer Agent -> Output JSON
 
 ## Services
 
-- `AIService` (app/services/ai_service.py): wrapper for multiple LLM providers
+- `AIService` (app/services/ai_service.py): wrapper for Google Gemini LLM provider
 - `DataService` (app/services/data_service.py): filesystem helpers for inputs/outputs
 
 ## Deployment

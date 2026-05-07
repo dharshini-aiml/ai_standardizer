@@ -61,8 +61,17 @@ class Fixer:
         elif any(x in key_lower for x in ["name", "full_name"]):
             return DataCleaner.clean_name(value) if isinstance(value, str) else value
         
+        elif any(x in key_lower for x in ["amount", "total", "price", "cost", "sum"]):
+            return DataCleaner.clean_amount(value) if isinstance(value, str) else value
+        
+        elif any(x in key_lower for x in ["date", "invoice_date", "due_date", "created_date"]):
+            return DataCleaner.clean_date(value) if isinstance(value, str) else value
+        
+        elif any(x in key_lower for x in ["invoice_number", "invoice_no", "inv_no"]):
+            return DataCleaner.clean_invoice_number(value) if isinstance(value, str) else value
+        
         elif isinstance(value, str):
-            return DataCleaner.clean_text(value)
+            return DataCleaner.clean_symbols(value)
         
         return value
     

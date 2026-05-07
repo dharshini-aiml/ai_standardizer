@@ -1,6 +1,6 @@
 # GitHub Copilot Toolbox — MCP & Skills awareness
 
-_Generated: 2026-05-06T16:50:36.293Z_
+_Generated: 2026-05-07T04:38:32.719Z_
 
 ## How to use this report
 
@@ -15,7 +15,7 @@ _Generated: 2026-05-06T16:50:36.293Z_
 
 Workspace `mcp.json` _(folder: ai_standardizer)_
 
-- **c:\Users\Muniyappan.C\Downloads\ai_standardizer\ai_standardizer\.vscode\mcp.json** — _File missing_
+- **d:\New folder\ai_standardizer\ai_standardizer\.vscode\mcp.json** — _File missing_
 
 _No active workspace servers in mcp.json._
 

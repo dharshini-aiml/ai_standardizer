@@ -2,11 +2,13 @@
 from app.agents.validator import validate_json, Validator
 from app.agents.formatter import format_json, Formatter
 from app.agents.fixer import fix_json, Fixer
+from app.agents.type_detector import TypeDetector
 
 __all__ = [
     "validate_json",
     "format_json",
     "fix_json",
+    "TypeDetector",
     "Validator",
     "Formatter",
     "Fixer",
