@@ -1,168 +1,82 @@
-"""FastAPI application for data standardization service."""
+"""LangGraph workflow for data standardization."""
 
-from fastapi import FastAPI, HTTPException, status
-from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
-from typing import Optional, List, Dict, Any
-
-from app.config import settings
-from app.utils.logger import logger
-from app.services.ai_service import AIService
+from langgraph.graph import StateGraph, END
 
 
-# ✅ FIRST app define பண்ணணும்
-app = FastAPI(
-    title=settings.API_TITLE,
-    version=settings.API_VERSION,
-    description="Data Standardization and Schema Mapping Agent API"
-)
-
-# ✅ Middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
-# ✅ Health
-@app.get("/health")
-def health_check() -> dict:
-    return {
-        "status": "healthy",
-        "service": settings.API_TITLE,
-        "version": settings.API_VERSION
-    }
-
-
-# ✅ Config
-@app.get("/config")
-def get_config() -> dict:
-    return settings.get_config()
-
-
-# ✅ Standardize
-@app.post("/standardize", status_code=status.HTTP_200_OK)
-def standardize(input_data: Dict[str, Any]) -> dict:
-    try:
-        # Use the LangGraph pipeline
-        from app.graph import build_graph
-
-        graph = build_graph()
-        result = graph.invoke({"data": input_data})
-
-        # ✅ Extract results safely
-        document_data = result.get("data", {})
-        document_id = document_data.get("document_id")
-
-        # ✅ Return proper validation error
-        if not document_id:
-            raise HTTPException(
-                status_code=422,
-                detail="Missing required field: document_id"
-            )
-
-        standardized_data = result.get("standardized_data", {})
-        quality_score = result.get("quality_score", 0.0)
-        document_type = result.get("document_type", "unknown")
-
-        # ✅ Collect validation errors
-        validation_errors = result.get("validation_errors", [])
-
-        if result.get("formatting_error"):
-            validation_errors.append(result["formatting_error"])
-
-        if result.get("fixing_error"):
-            validation_errors.append(result["fixing_error"])
-
-        return {
-            "document_id": document_id,
-            "document_type": document_type,
-            "standardized_data": standardized_data,
-            "quality_score": quality_score,
-            "validation_errors": validation_errors if validation_errors else None
-        }
-
-    except HTTPException:
-        raise
-
-    except Exception as e:
-        logger.error(f"Error: {str(e)}")
-
-        raise HTTPException(
-            status_code=500,
-            detail="Internal server error"
-        )
-
-
-# ✅ Batch processing
-@app.post("/standardize-batch", status_code=status.HTTP_200_OK)
-def standardize_batch(inputs: List[Dict[str, Any]]) -> dict:
-    results = []
+def validate_node(state: dict) -> dict:
+    """Validation step."""
+    data = state.get("data", {})
     errors = []
 
-    for index, item in enumerate(inputs):
-        try:
-            result = standardize(item)
-            results.append(result)
+    if not data.get("document_id"):
+        errors.append("Missing document_id")
 
-        except Exception as e:
-            errors.append({
-                "index": index,
-                "document_id": item.get("document_id"),
-                "error": str(e)
-            })
+    if not data.get("extracted_fields"):
+        errors.append("Missing extracted_fields")
 
-    return {
-        "successful": len(results),
-        "failed": len(errors),
-        "results": results,
-        "errors": errors
-    }
+    state["validation_errors"] = errors
+    return state
 
 
-# ✅ Gemini / LLM test
-@app.get("/llm-test")
-def llm_test(prompt: Optional[str] = None) -> dict:
-    ai = AIService()
-    test_prompt = prompt or "Respond with 'pong'"
+def format_node(state: dict) -> dict:
+    """Formatting step."""
+    data = state.get("data", {})
+    extracted = data.get("extracted_fields", {})
 
-    try:
-        resp = ai.generate(test_prompt)
+    formatted = {}
 
-        return {
-            "available": True,
-            "provider": "Gemini",
-            "response": resp
-        }
+    for key, value in extracted.items():
+        clean_key = key.strip().lower()
 
-    except Exception as e:
-        return {
-            "available": False,
-            "provider": "Gemini",
-            "error": str(e)
-        }
+        if isinstance(value, str):
+            value = value.strip()
+
+        formatted[clean_key] = value
+
+    state["formatted_data"] = formatted
+    return state
 
 
-# ✅ Global exception handler
-@app.exception_handler(Exception)
-async def general_exception_handler(request, exc: Exception):
-    logger.error(f"Unhandled exception: {str(exc)}")
+def fix_node(state: dict) -> dict:
+    """Cleaning and standardization step."""
+    formatted = state.get("formatted_data", {})
+    standardized = {}
 
-    return JSONResponse(
-        status_code=500,
-        content={"detail": "Internal server error"}
-    )
+    for key, value in formatted.items():
+
+        if "email" in key and isinstance(value, str):
+            standardized[key] = value.lower()
+
+        elif "phone" in key and isinstance(value, str):
+            digits = "".join(filter(str.isdigit, value))
+            standardized[key] = digits
+
+        elif "name" in key and isinstance(value, str):
+            standardized[key] = " ".join(value.split()).title()
+
+        else:
+            standardized[key] = value
+
+    state["standardized_data"] = standardized
+    state["quality_score"] = 0.95
+    state["document_type"] = state.get("data", {}).get("source", "unknown")
+
+    return state
 
 
-# ✅ Run server
-if __name__ == "__main__":
-    import uvicorn
+def build_graph():
+    """Build LangGraph workflow."""
 
-    uvicorn.run(
-        app,
-        host="0.0.0.0",
-        port=8000
-    )
+    workflow = StateGraph(dict)
+
+    workflow.add_node("validate", validate_node)
+    workflow.add_node("format", format_node)
+    workflow.add_node("fix", fix_node)
+
+    workflow.set_entry_point("validate")
+
+    workflow.add_edge("validate", "format")
+    workflow.add_edge("format", "fix")
+    workflow.add_edge("fix", END)
+
+    return workflow.compile()
