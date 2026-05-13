@@ -8,9 +8,7 @@ from typing import Optional, List, Dict, Any
 from app.config import settings
 from app.utils.logger import logger
 from app.services.ai_service import AIService
-
-
-# ✅ FIRST app define பண்ணணும்
+ 
 app = FastAPI(
     title=settings.API_TITLE,
     version=settings.API_VERSION,

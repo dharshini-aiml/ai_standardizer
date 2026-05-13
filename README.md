@@ -28,71 +28,28 @@ Output (Standardized JSON)
 
 ```
 app/
-├── __init__.py            # Package initialization
+├── __init__.py
 ├── api.py                 # FastAPI application & endpoints
-├── config.py              # Configuration and environment settings
-├── exceptions.py          # Custom exception types
-├── graph.py               # LangGraph pipeline orchestration
-├── agents/                # Modular data processing agents
+├── config.py             # Configuration management
+├── exceptions.py         # Custom exceptions
+├── graph.py              # LangGraph workflow definition
+├── agents/               # Processing agents
 │   ├── __init__.py
-│   ├── validator.py       # Input validation agent
-│   ├── formatter.py       # Formatting/normalization agent
-│   ├── fixer.py           # Data cleaning and standardization agent
-│   └── type_detector.py   # Document type inference
-├── models/                # Pydantic models and schemas
+│   ├── validator.py      # Input validation agent
+│   ├── formatter.py      # Data formatting agent
+│   └── fixer.py         # Data cleaning agent
+├── models/               # Pydantic schemas
 │   ├── __init__.py
-│   └── schema.py          # Input/output schema definitions
-└── utils/                 # Shared utilities
+│   └── schema.py        # Input/output schemas
+└── utils/                # Utility modules
     ├── __init__.py
-    ├── logger.py          # Logging configuration
-    └── data_cleaner.py    # Reusable cleaning helpers
-docs/
-├── architecture.md        # Design and workflow documentation
-data/
-├── input/                 # Example input payloads
-└── output/                # Example output results
-test_results/
-├── coverage_report.txt    # Generated coverage summary
+    ├── logger.py        # Logging configuration
+    └── data_cleaner.py  # Data cleaning utilities
 tests/
-├── test_api.py            # API contract tests
-├── test_fixer_agent.py    # Fixer logic tests
-├── test_formatter.py      # Formatter tests
-├── test_validator.py      # Validator tests
-├── test_type_detector.py  # Type detection tests
-└── ...
-requirements.txt           # Project dependencies
-setup.py                   # Packaging metadata
-README.md                  # Project documentation
+├── test_api.py          # API tests
+requirements.txt         # Project dependencies
+README.md               # This file
 ```
-
-## 🧩 New Files and Workflow Additions
-
-This repository now includes documentation and test artifacts that support a complete delivery workflow:
-
-- `docs/architecture.md` — design decisions, pipeline overview, and architecture notes
-- `.env.example` — sample environment configuration for local development
-- `.coveragerc` — coverage tool configuration
-- `test_results/coverage_report.txt` — generated coverage summary for reviews and reporting
-- `tests/` — expanded unit and API test coverage for core agents and endpoints
-
-## 🧭 Processing Workflow
-
-The standardization pipeline follows a clear, deterministic flow:
-
-1. **Receive request**
-   - Client submits a JSON payload to `/standardize`
-2. **Validate input**
-   - `Validator` checks required fields, types, and extracted values
-3. **Format fields**
-   - `Formatter` normalizes keys, trims text, and detects common field types
-4. **Clean and standardize**
-   - `Fixer` applies field-specific normalization, fixes encoding issues, and computes quality metrics
-5. **Infer document type**
-   - `TypeDetector` labels the document based on cleaned field content
-6. **Return response**
-   - API returns a single clean `standardized_data` object with metadata
-
-This workflow is designed to keep the output predictable, easy to consume, and ready for downstream automation.
 
 ## 🚀 Getting Started
 
