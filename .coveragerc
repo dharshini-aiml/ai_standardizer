@@ -1,0 +1,5 @@
+[run]
+omit =
+    setup.py
+    main.py
+    app/main.py

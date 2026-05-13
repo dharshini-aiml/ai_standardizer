@@ -224,11 +224,3 @@ response = requests.post(
 )
 ```
 
-## 📄 License
-
-MIT License
-
----
-
-**Version**: 1.0.0  
-**Status**: Production Ready

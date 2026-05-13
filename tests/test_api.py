@@ -136,3 +136,80 @@ class TestBatchProcessing:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+from fastapi.testclient import TestClient
+import app.api as api_module
+
+
+client = TestClient(api_module.app)
+
+
+def test_standardize_with_formatting_and_fixing_errors(monkeypatch):
+    class FakeGraph:
+        def invoke(self, data):
+            return {
+                "data": {"document_id": "DOC001"},
+                "standardized_data": {"name": "Dharshu"},
+                "quality_score": 0.8,
+                "document_type": "invoice",
+                "validation_errors": ["old error"],
+                "formatting_error": "format error",
+                "fixing_error": "fix error",
+            }
+
+    monkeypatch.setattr("app.graph.build_graph", lambda: FakeGraph())
+
+    response = client.post("/standardize", json={"document_id": "DOC001"})
+
+    assert response.status_code == 200
+    body = response.json()
+
+    assert body["validation_errors"] == [
+        "old error",
+        "format error",
+        "fix error",
+    ]
+
+
+def test_standardize_internal_server_error(monkeypatch):
+    class FakeGraph:
+        def invoke(self, data):
+            raise Exception("Graph failed")
+
+    monkeypatch.setattr("app.graph.build_graph", lambda: FakeGraph())
+
+    response = client.post("/standardize", json={"document_id": "DOC001"})
+
+    assert response.status_code == 500
+    assert response.json()["detail"] == "Internal server error"
+
+
+def test_llm_test_success(monkeypatch):
+    class FakeAIService:
+        def generate(self, prompt):
+            return "pong"
+
+    monkeypatch.setattr(api_module, "AIService", lambda: FakeAIService())
+
+    response = client.get("/llm-test?prompt=ping")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "available": True,
+        "provider": "Gemini",
+        "response": "pong",
+    }
+
+
+def test_llm_test_failure(monkeypatch):
+    class FakeAIService:
+        def generate(self, prompt):
+            raise Exception("Gemini down")
+
+    monkeypatch.setattr(api_module, "AIService", lambda: FakeAIService())
+
+    response = client.get("/llm-test")
+
+    assert response.status_code == 200
+    assert response.json()["available"] is False
+    assert response.json()["provider"] == "Gemini"
+    assert "Gemini down" in response.json()["error"]

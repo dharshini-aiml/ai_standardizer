@@ -112,11 +112,11 @@ class DataCleaner:
         
         # Common date patterns
         patterns = [
-            (r'(\d{1,2})/(\d{1,2})/(\d{4})', lambda m: f"{m.group(3)}-{m.group(1):0>2}-{m.group(2):0>2}"),  # MM/DD/YYYY
-            (r'(\d{1,2})-(\d{1,2})-(\d{4})', lambda m: f"{m.group(3)}-{m.group(1):0>2}-{m.group(2):0>2}"),  # MM-DD-YYYY
-            (r'(\d{4})/(\d{1,2})/(\d{1,2})', lambda m: f"{m.group(1)}-{m.group(2):0>2}-{m.group(3):0>2}"),  # YYYY/MM/DD
-            (r'(\d{4})-(\d{1,2})-(\d{1,2})', lambda m: f"{m.group(1)}-{m.group(2):0>2}-{m.group(3):0>2}"),  # YYYY-MM-DD
-            (r'(\d{1,2})\s+(\w{3})\s+(\d{4})', None),  # DD Mon YYYY (needs month name parsing)
+            (r'(\d{1,2})/(\d{1,2})/(\d{4})', lambda m: f"{m.group(3)}-{m.group(1):0>2}-{m.group(2):0>2}"),
+            (r'(\d{1,2})-(\d{1,2})-(\d{4})', lambda m: f"{m.group(3)}-{m.group(1):0>2}-{m.group(2):0>2}"),
+            (r'(\d{4})/(\d{1,2})/(\d{1,2})', lambda m: f"{m.group(1)}-{m.group(2):0>2}-{m.group(3):0>2}"),
+            (r'(\d{4})-(\d{1,2})-(\d{1,2})', lambda m: f"{m.group(1)}-{m.group(2):0>2}-{m.group(3):0>2}"),
+            (r'(\d{1,2})\s+(\w{3})\s+(\d{4})', None),
         ]
         
         for pattern, formatter in patterns:
@@ -124,12 +124,14 @@ class DataCleaner:
             if match:
                 if formatter:
                     return formatter(match)
-                # Handle month names
+
                 day, month_name, year = match.groups()
                 month_names = {
-                    'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04', 'may': '05', 'jun': '06',
-                    'jul': '07', 'aug': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12'
+                    'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04',
+                    'may': '05', 'jun': '06', 'jul': '07', 'aug': '08',
+                    'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12'
                 }
+
                 month = month_names.get(month_name.lower()[:3], '01')
                 return f"{year}-{month}-{day:0>2}"
         
@@ -150,8 +152,13 @@ class DataCleaner:
         if not isinstance(inv_num, str):
             return str(inv_num) if inv_num else ""
             
-        # Remove common prefixes and unwanted characters
-        inv_num = re.sub(r'^(inv|invoice|no|#)\s*[:\-]?\s*', '', inv_num, flags=re.IGNORECASE)
+        inv_num = re.sub(
+            r'^(inv|invoice|no|#)\s*[:\-]?\s*',
+            '',
+            inv_num,
+            flags=re.IGNORECASE
+        )
+
         inv_num = re.sub(r'[^\w\-]', '', inv_num)
         
         return DataCleaner.clean_text(inv_num)
@@ -170,10 +177,7 @@ class DataCleaner:
         if not isinstance(text, str):
             return text
             
-        # Remove unwanted symbols but keep alphanumeric, spaces, and basic punctuation
         text = re.sub(r'[^\w\s\.\-\,\(\)\&\']', '', text)
-        
-        # Normalize whitespace
         text = " ".join(text.split())
         
         return text.strip()
@@ -182,32 +186,28 @@ class DataCleaner:
     def clean_phone(phone: str) -> str:
         """
         Clean and standardize phone numbers.
-        
+
         Args:
             phone: Input phone number
-            
+
         Returns:
-            Standardized phone number
+            Cleaned phone number
         """
         if not isinstance(phone, str):
             return phone
-            
-        # Remove non-digit characters except leading +
+
+        # Remove extra spaces
         phone = phone.strip()
-        
+
+        # Keep + if present at beginning
         if phone.startswith("+"):
-            digits = re.sub(r'[^\d]', '', phone)
+            digits = re.sub(r"[^\d]", "", phone)
             return "+" + digits
-        else:
-            digits = re.sub(r'[^\d]', '', phone)
-            
-            # US/Canada format
-            if len(digits) == 10:
-                return f"+1 ({digits[:3]}) {digits[3:6]}-{digits[6:]}"
-            elif len(digits) == 11 and digits[0] == '1':
-                return f"+1 ({digits[1:4]}) {digits[4:7]}-{digits[7:]}"
-            
-            return "+" + digits if digits else phone
+
+        # Otherwise keep only digits
+        digits = re.sub(r"[^\d]", "", phone)
+
+        return digits
     
     @staticmethod
     def clean_name(name: str) -> str:
@@ -223,10 +223,7 @@ class DataCleaner:
         if not isinstance(name, str):
             return name
             
-        # Clean whitespace
         name = DataCleaner.clean_text(name)
-        
-        # Title case each word
         name = " ".join(word.capitalize() for word in name.split())
         
         return name
@@ -245,7 +242,6 @@ class DataCleaner:
         normalized = {}
         
         for key, value in data.items():
-            # Convert to snake_case
             normalized_key = re.sub(r'(?<!^)(?=[A-Z])', '_', key).lower()
             normalized_key = re.sub(r'[-\s]+', '_', normalized_key)
             normalized_key = re.sub(r'_+', '_', normalized_key).strip('_')
@@ -265,8 +261,10 @@ class DataCleaner:
         Returns:
             Dictionary without null values
         """
-        return {k: v for k, v in data.items() 
-                if v is not None and v != "" and v != "null"}
+        return {
+            k: v for k, v in data.items()
+            if v is not None and v != "" and v != "null"
+        }
     
     @staticmethod
     def clean_data(data: Dict[str, Any]) -> Dict[str, Any]:
@@ -279,26 +277,26 @@ class DataCleaner:
         Returns:
             Cleaned data dictionary
         """
-        # Normalize keys
         data = DataCleaner.normalize_keys(data)
-        
-        # Remove null values
         data = DataCleaner.remove_null_values(data)
         
-        # Clean text values
         cleaned_data = {}
+
         for key, value in data.items():
             if isinstance(value, str):
                 cleaned_data[key] = DataCleaner.clean_text(value)
+
             elif isinstance(value, dict):
                 cleaned_data[key] = DataCleaner.clean_data(value)
+
             elif isinstance(value, list):
                 cleaned_data[key] = [
-                    DataCleaner.clean_data(item) if isinstance(item, dict) 
+                    DataCleaner.clean_data(item) if isinstance(item, dict)
                     else DataCleaner.clean_text(item) if isinstance(item, str)
                     else item
                     for item in value
                 ]
+
             else:
                 cleaned_data[key] = value
         
@@ -320,18 +318,25 @@ class DataCleaner:
         for key, value in data.items():
             if value is None:
                 type_map[key] = "null"
+
             elif isinstance(value, bool):
                 type_map[key] = "boolean"
+
             elif isinstance(value, int):
                 type_map[key] = "integer"
+
             elif isinstance(value, float):
                 type_map[key] = "float"
+
             elif isinstance(value, str):
                 type_map[key] = "string"
+
             elif isinstance(value, dict):
                 type_map[key] = "object"
+
             elif isinstance(value, list):
                 type_map[key] = "array"
+
             else:
                 type_map[key] = "unknown"
         
@@ -352,6 +357,10 @@ class DataCleaner:
             return 0.0
         
         total_fields = len(data)
-        non_null_fields = len([v for v in data.values() if v is not None and v != ""])
+
+        non_null_fields = len([
+            v for v in data.values()
+            if v is not None and v != ""
+        ])
         
         return round(non_null_fields / total_fields, 2)

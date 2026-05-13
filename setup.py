@@ -15,9 +15,9 @@ setup(
         "python-dotenv==1.0.0",
         "langgraph==0.0.17",
         "langchain==0.1.0",
-        "google-generative-ai>=0.2.0",
         "pandas==2.1.3",
         "numpy==1.26.2",
+        "google-generativeai>=0.2.0"
     ],
     extras_require={
         "dev": [
