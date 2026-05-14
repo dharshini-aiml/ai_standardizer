@@ -69,7 +69,7 @@ app/
 │   ├── validator.py      # Input validation agent
 │   ├── formatter.py      # Data formatting agent
 │   └── fixer.py         # Data cleaning agent
-├── models/               # Pydantic schemas
+├── app/models/          # Pydantic schemas
 │   ├── __init__.py
 │   └── schema.py        # Input/output schemas
 └── utils/                # Utility modules
