@@ -57,30 +57,75 @@ sequenceDiagram
 
 ## 📦 Project Structure
 
-```
-app/
-├── __init__.py
-├── api.py                 # FastAPI application & endpoints
-├── config.py             # Configuration management
-├── exceptions.py         # Custom exceptions
-├── graph.py              # LangGraph workflow definition
-├── agents/               # Processing agents
-│   ├── __init__.py
-│   ├── validator.py      # Input validation agent
-│   ├── formatter.py      # Data formatting agent
-│   └── fixer.py         # Data cleaning agent
-├── app/models/          # Pydantic schemas
-│   ├── __init__.py
-│   └── schema.py        # Input/output schemas
-└── utils/                # Utility modules
-    ├── __init__.py
-    ├── logger.py        # Logging configuration
-    └── data_cleaner.py  # Data cleaning utilities
-tests/
-├── test_api.py          # API tests
-requirements.txt         # Project dependencies
-README.md               # This file
-```
+ai_standardizer/
+│
+├── app/
+│   ├── agents/
+│   │   ├── __init__.py
+│   │   ├── fixer.py
+│   │   ├── formatter.py
+│   │   ├── type_detector.py
+│   │   └── validator.py
+│   │
+│   ├── models/
+│   │   ├── __init__.py
+│   │   └── schema.py
+│   │
+│   ├── services/
+│   │   ├── __init__.py
+│   │   └── ai_service.py
+│   │    
+│   ├── utils/
+│   │   ├── __init__.py
+│   │   ├── data_cleaner.py
+│   │   └── logger.py
+│   │
+│   ├── api.py
+│   ├── config.py
+│   ├── exceptions.py
+│   ├── graph.py
+│   └── main.py
+│
+├── data/
+│   ├── input/
+│   ├── output/
+│   └── archive/
+│
+├── docs/
+│   ├── architecture.md 
+│   ├── sequence-diagram.md
+│   ├── sequence-diagram.png
+│   └── workflow-flowchart.md
+│
+├── logs/
+│
+├── scripts/
+│   ├── run_app.py
+│   └── test_llm.py
+│
+├── test_results/
+│   └── coverage_report.txt
+│
+├── tests/
+│   ├── conftest.py
+│   ├── test_agents.py
+│   ├── test_ai_service.py
+│   ├── test_api.py
+│   ├── test_data_cleaner.py
+│   ├── test_fixer_agent.py
+│   ├── test_formatter.py
+│   ├── test_type_detector.py
+│   └── test_utils.py
+│
+├── .coverage
+├── .coveragerc
+├── .env.example
+├── .gitignore
+├── Dockerfile
+├── Makefile
+├── pytest.ini
+├── requirements.txt
+└── README.md```
 
 ## 🚀 Getting Started
 
